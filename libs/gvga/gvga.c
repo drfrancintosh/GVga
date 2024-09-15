@@ -67,7 +67,7 @@ static int32_t striped_scanline(uint32_t *buf, size_t buf_length, int width, uin
 
 static int32_t _scanline_render_1bpp(uint32_t *buf, size_t buf_length, int width, int scanline) {
     _bufptr = 0;
-    uint8_t *row = &gvga->bitplanes[0][scanline * width / 8];
+    uint8_t *row = &gvga->bitplanes[0][scanline * width / gvga->pixelsPerByte];
     for(int pixel=0; pixel < width; pixel+=8) {
         uint8_t byte = row[pixel / 8];
         uint16_t *colors = &colorbuf[byte * 8];
@@ -102,36 +102,22 @@ static int32_t _scanline_render_1bpp(uint32_t *buf, size_t buf_length, int width
 
 static int32_t _scanline_render_2bpp(uint32_t *buf, size_t buf_length, int width, int scanline) {
     _bufptr = 0;
-    uint8_t *row0 = &gvga->bitplanes[0][scanline * width / 8];
-    uint8_t *row1 = &gvga->bitplanes[1][scanline * width / 8];
-    for(int pixel=0; pixel < width; pixel+=8) {
-        uint8_t byte0 = row0[pixel / 8];
-        uint8_t byte1 = row1[pixel / 8];
-        uint nybble0 = byte0 & 0xf0;
-        uint nybble1 = (byte1 & 0xf0) >> 4;
-        uint index = nybble0 | nybble1;
-        uint16_t *colors = &colorbuf[index * 4];
-        if (pixel == 0) {
-            push0(buf, COMPOSABLE_RAW_RUN);
-            push1(buf, colors[0]);
-            push0(buf, width-3);
-            push1(buf, colors[1]);
-            push0(buf, colors[2]);
-            push1(buf, colors[3]);
-        } else {
-            push0(buf, colors[0]);
-            push1(buf, colors[1]);
-            push0(buf, colors[2]);
-            push1(buf, colors[3]);
-        }
-        nybble0 = (byte0 & 0x0f) << 4;
-        nybble1 = byte1 & 0x0f;
-        index = nybble0 | nybble1;
-        colors = &colorbuf[index * 4];
-        push0(buf, colors[0]);
-        push1(buf, colors[1]);
-        push0(buf, colors[2]);
-        push1(buf, colors[3]);
+    uint8_t *row = &gvga->bitplanes[0][scanline * width / gvga->pixelsPerByte];
+    uint8_t byte = *row++;
+    uint16_t *colors = &colorbuf[byte * gvga->colors];
+    push0(buf, COMPOSABLE_RAW_RUN);
+    push1(buf, *colors++);
+    push0(buf, width-3);
+    push1(buf, *colors++);
+    push0(buf, *colors++);
+    push1(buf, *colors++);
+    for(int pixel=gvga->pixelsPerByte; pixel < width; pixel += gvga->pixelsPerByte) {
+        byte = *row++;
+        colors = &colorbuf[byte * gvga->colors];
+        push0(buf, *colors++);
+        push1(buf, *colors++);
+        push0(buf, *colors++);
+        push1(buf, *colors++);
     }
     push0(buf, COMPOSABLE_RAW_1P);
     push1(buf, 0);
@@ -142,19 +128,22 @@ static int32_t _scanline_render_2bpp(uint32_t *buf, size_t buf_length, int width
 
 static int32_t _scanline_render_4bpp(uint32_t *buf, size_t buf_length, int width, int scanline) {
     _bufptr = 0;
-    uint8_t *row = &gvga->bitplanes[0][scanline * width / 2];
-    for(int pixel=0; pixel < width; pixel+=2) {
-        uint8_t byte = row[pixel / 2];
-        uint16_t *colors = &colorbuf[byte * 2];
-        if (pixel == 0) {
-            push0(buf, COMPOSABLE_RAW_RUN);
-            push1(buf, colors[0]);
-            push0(buf, width-3);
-            push1(buf, colors[1]);
-        } else {
-            push0(buf, colors[0]);
-            push1(buf, colors[1]);
-        }
+    uint8_t *row = &gvga->bitplanes[0][scanline * width / gvga->pixelsPerByte];
+    uint8_t byte = *row++;
+    uint16_t *colors = &colorbuf[byte * gvga->colors];
+    push0(buf, COMPOSABLE_RAW_RUN);
+    push1(buf, colors[0]);
+    push0(buf, width-3);
+    push1(buf, colors[1]);
+    push0(buf, colors[2]);
+    push1(buf, colors[3]);
+    for(int pixel=4; pixel < width; pixel+=4) {
+        byte = *row++;
+        colors = &colorbuf[byte * gvga->colors];
+        push0(buf, colors[0]);
+        push1(buf, colors[1]);
+        push1(buf, colors[2]);
+        push1(buf, colors[3]);
     }
     push0(buf, COMPOSABLE_RAW_1P);
     push1(buf, 0);
@@ -211,6 +200,7 @@ GVga *gvga_init(uint16_t width, uint16_t height, uint8_t bits, void *context) {
     gvga->width = width;
     gvga->bits = bits;
     gvga->colors = 1 << bits;
+    gvga->pixelsPerByte = 8 / bits;
     gvga->context = context;
 
     if (width == 320) {
@@ -220,17 +210,14 @@ GVga *gvga_init(uint16_t width, uint16_t height, uint8_t bits, void *context) {
     gvga->multiplier = (FRAME_HEIGHT + 1) / height;
     gvga->headerRows = (FRAME_HEIGHT - height * gvga->multiplier) / 2;
 
+    gvga->bitplanes[0] = calloc(width * height / gvga->pixelsPerByte, 1);
     if (bits == 1) {
-        gvga->bitplanes[0] = calloc(width * height / 8, 1);
         gvga_setPalette(gvga, _palette2);
         gvga->scanline_render = _scanline_render_1bpp;
     } else if (bits == 2) {
-        gvga->bitplanes[0] = calloc(width * height / 8, 1);
-        gvga->bitplanes[1] = calloc(width * height / 8, 1);
         gvga_setPalette(gvga, _palette4);
         gvga->scanline_render = _scanline_render_2bpp;
     } else if (bits == 4) {
-        gvga->bitplanes[0] = calloc(width * height / 2, 1);
         gvga_setPalette(gvga, _palette16);
         gvga->scanline_render = _scanline_render_4bpp;
     } else if (bits == 8) {
@@ -239,7 +226,6 @@ GVga *gvga_init(uint16_t width, uint16_t height, uint8_t bits, void *context) {
             gvga->palette[i] = GVGA_COLOR(i >> 3, i >> 3, i >> 3);
         }
         memcpy(_palette256, _palette16, 16 * sizeof(GVgaColor));
-        gvga->bitplanes[0] = calloc(width * height, 1);
         gvga_setPalette(gvga, _palette256);
         gvga->scanline_render = _scanline_render_8bpp;
     }
@@ -259,12 +245,14 @@ static void _palette_1bpp(GVga *gvga) {
 
 static void _palette_2bpp(GVga *gvga) {
     for(uint i=0; i<256; i++) {
-        for(uint j=0; j<4; j++) {
-            uint bit0 = ((1 << (7-j)) & i) ? 2 : 0;
-            uint bit1 = ((1 << (3-j))  & i) ? 1 : 0;
-            uint index = bit0 | bit1;
-            colorbuf[i * 4 + j] = gvga->palette[index];
-        }
+        uint chew0 = (i & 0xc0) >> 6;
+        uint chew1 = (i & 0x30) >> 4;
+        uint chew2 = (i & 0x0c) >> 2;
+        uint chew3 = (i & 0x03);
+        colorbuf[i * 4 + 0] = gvga->palette[chew0];
+        colorbuf[i * 4 + 1] = gvga->palette[chew1];
+        colorbuf[i * 4 + 2] = gvga->palette[chew2];
+        colorbuf[i * 4 + 3] = gvga->palette[chew3];
     }
 }
 

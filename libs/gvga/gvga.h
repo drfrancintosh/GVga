@@ -43,6 +43,7 @@ typedef struct GVga {
     uint16_t multiplier;
     uint16_t headerRows;
     uint8_t borderColors[4];
+    uint16_t pixelsPerByte; // pixels per byte
     int32_t (*scanline_render)(uint32_t *buf, size_t buf_length, int width, int scanline);
 } GVga;
 

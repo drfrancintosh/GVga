@@ -3,15 +3,15 @@
 #include <string.h>
 
 // minimal graphics library for GVga
-void gfx_set8(GVga *gvga, int x, int y, int color) {
+void gfx_set8bpp(GVga *gvga, int x, int y, int color) {
     uint row = y * gvga->width;
     uint byte = row + x;
     gvga->bitplanes[0][byte] = color;
 }
 
-void gfx_set4(GVga *gvga, int x, int y, int color) {
-    uint row = y * gvga->width / 2;
-    uint byte = row + x / 2;
+void gfx_set4bpp(GVga *gvga, int x, int y, int color) {
+    uint row = y * gvga->width / gvga->pixelsPerByte;
+    uint byte = row + x / gvga->pixelsPerByte;
     uint mask;
     if (x % 2 == 0) {
         mask = 0x0f;
@@ -22,28 +22,55 @@ void gfx_set4(GVga *gvga, int x, int y, int color) {
     gvga->bitplanes[0][byte] = (gvga->bitplanes[0][byte] & mask) | color;
 }
 
+void gfx_set2bpp(GVga *gvga, int x, int y, int color) {
+    uint row = y * gvga->width / gvga->pixelsPerByte;
+    uint byte = row + x / gvga->pixelsPerByte;
+    uint mask;
+    switch (x % 4) {
+        case 0:
+            mask = 0xc0;
+            color = color << 6;
+            break;
+        case 1:
+            mask = 0x30;
+            color = color << 4;
+            break;
+        case 2:
+            mask = 0x0c;
+            color = color << 2;
+            break;
+        case 3:
+            mask = 0x03;
+            break;
+    }
+    gvga->bitplanes[0][byte] = (gvga->bitplanes[0][byte] & ~mask) | color;
+}
+
+void gfx_set1bpp(GVga *gvga, int x, int y, int color) {
+    uint row = y * gvga->width / gvga->pixelsPerByte;
+    uint byte = row + x / gvga->pixelsPerByte;
+    uint mask = 1 << (7 - (x % 8));
+    if (color) {
+        gvga->bitplanes[0][byte] |= mask;
+    } else {
+        gvga->bitplanes[0][byte] &= ~mask;
+    }
+}
+
 void gfx_set(GVga *gvga, int x, int y, int color) {
-    if (gvga->bits == 4) {
-        gfx_set4(gvga, x, y, color);
-        return;
-    }
-    if (gvga->bits == 8) {
-        gfx_set8(gvga, x, y, color);
-        return;
-    }
-    uint byte = x / 8 + y * gvga->width / 8;
-    uint planes = gvga->bits;
-    uint mask = 0x80 >> (x % 8);
-    if (gvga->bits == 3) {
-        color = gvga->palette[color];
-    }
-    for(int plane=0; plane<planes; plane++) {
-        if (color & 0x01) {
-            gvga->bitplanes[plane][byte] |= mask;
-        } else {
-            gvga->bitplanes[plane][byte] &= ~mask;
-        }
-        color = color >> 1;
+    switch(gvga->bits ) {
+        case 1:
+            gfx_set1bpp(gvga, x, y, color);
+            break;
+        case 2:
+            gfx_set2bpp(gvga, x, y, color);
+            break;
+        case 4:
+            gfx_set4bpp(gvga, x, y, color);
+            break;
+        case 8:
+            gfx_set8bpp(gvga, x, y, color);
+            break;
     }
 }
 
@@ -68,19 +95,19 @@ void gfx_line(GVga *gvga, int x0, int y0, int x1, int y1, int color) {
 }
 
 void gfx_clear(GVga *gvga, int color) {
-    if (gvga->bits == 8) {
-        memset(gvga->bitplanes[0], color, gvga->width * gvga->height);
-        return;
-    }
-    if (gvga->bits == 4) {
-        memset(gvga->bitplanes[0], (color | (color << 4)), gvga->width * gvga->height / 2);
-        return;
-    }
-    if (gvga->bits == 3) {
-        color = gvga->palette[color];
-    }
-    for(int i=0; i<gvga->bits; i++) {
-        memset(gvga->bitplanes[i], color ? 0xff : 0x00, gvga->width * gvga->height / 8);
+    switch(gvga->bits) {
+        case 1:
+            memset(gvga->bitplanes[0], color ? 0xff : 0x00, gvga->width * gvga->height / 8);
+            return;
+        case 2:
+            memset(gvga->bitplanes[0], (color | (color << 2) | (color << 4) | (color << 6)), gvga->width * gvga->height / 4);
+            return;
+        case 4:
+            memset(gvga->bitplanes[0], (color | (color << 4)), gvga->width * gvga->height / 2);
+            return;
+        case 8:
+            memset(gvga->bitplanes[0], color, gvga->width * gvga->height);
+            return;
     }
 }
 

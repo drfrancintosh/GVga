@@ -96,7 +96,7 @@ int main() {
 
 	int width = 320;
 	int height = 240;
-	int bits = 8;
+	int bits = 2;
 	int x = 20;
 	int y = 20;
 	int dx = 5;
