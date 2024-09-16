@@ -10,7 +10,6 @@ static struct GVga _gvga;
 static GVga *gvga = &_gvga;
 
 #define VGA_MODE vga_mode_320x240_60
-#define FRAME_HEIGHT 240
 #define _8_PIXELS_PER_BYTE 8
 #define _4_PIXELS_PER_BYTE 4
 #define _2_PIXELS_PER_BYTE 2
@@ -191,8 +190,8 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, void *context) {
     }
     mutex_init(&gvga->scanning_mutex);
 
-    gvga->multiplier = (FRAME_HEIGHT + 1) / height;
-    gvga->headerRows = (FRAME_HEIGHT - height * gvga->multiplier) / 2;
+    gvga->multiplier = (VGA_MODE.height + 1) / height;
+    gvga->headerRows = (VGA_MODE.height - height * gvga->multiplier) / 2;
 
     gvga->palette = calloc(gvga->colors, sizeof(GVgaColor));
     if (gvga->palette == NULL) return NULL;
