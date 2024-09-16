@@ -8,15 +8,39 @@
  * simple hello world program demonstrating the GVga library
  */
 
-const uint BOARD_LED_PIN = 25; // Example: GPIO 25, which is connected to the onboard LED
-int state = 1;
+struct hello_world_state {
+	int width;
+	int height;
+	int x;
+	int y;
+	int dx;
+	int dy;
+	int color1;
+	int color2;
+} _hello_world;
 
-void hello_world(GVga *gvga, int X, int Y, int width, int height, int color1, int color2) {
+const uint BOARD_LED_PIN = 25; // Example: GPIO 25, which is connected to the onboard LED
+int _state = 1;
+uint32_t _msLast;
+static GVgaColor _palette[] = {
+	GVGA_WHITE, GVGA_RED, GVGA_GREEN, GVGA_BLUE, GVGA_YELLOW, GVGA_CYAN, GVGA_VIOLET, GVGA_BLACK,
+	GVGA_COLOR(15, 15, 15), GVGA_COLOR(0, 15, 0), GVGA_COLOR(0, 15, 0), GVGA_COLOR(0, 0, 15),
+	GVGA_COLOR(15, 15, 0), GVGA_COLOR(0, 15, 15), GVGA_COLOR(15, 15, 0), GVGA_COLOR(7, 7, 7)
+};
+
+static void _draw_hello_world(GVga *gvga, struct hello_world_state *state) {
+	int width = state->width;
+	int height = state->height;
+	int X = state->x;
+	int Y = state->y;
+	int color1 = state->color1;
+	int color2 = state->color2;
 
 	// draw_some_boxes(gvga);
 	gfx_clear(gvga, 0);
-	gfx_box(gvga, 10, 10, width - 10, height - 10, 3);
-	gfx_box(gvga, 0, 0, width - 1, height - 1, 1);
+	for(int i = 1; i < 16; i++) {
+		gfx_box(gvga, i-1, i-1, width - i, height - i, i % gvga->colors);
+	}
 	int x = X;
 	int y = Y;
 	int h = 20;
@@ -87,50 +111,65 @@ void hello_world(GVga *gvga, int X, int Y, int width, int height, int color1, in
 	gfx_line(gvga, x+0, y+h-2, x+0, y+h, color2);
 }
 
+static void _init_led() {
+	// heartbeat led
+	gpio_init(BOARD_LED_PIN);
+	gpio_set_dir(BOARD_LED_PIN, GPIO_OUT);
+}
+
+static bool _blink_led(int rate) {
+	uint32_t ms_since_boot = to_ms_since_boot(get_absolute_time());
+	if (ms_since_boot - _msLast < rate) return false;
+	_msLast = ms_since_boot;
+	gpio_put(BOARD_LED_PIN, _state % 2);
+	_state++;
+	return true;
+}
+
+static void _init_hello_world(struct hello_world_state *state, int width, int height) {
+	state->width = width;
+	state->height = height;
+	state->x = 20;
+	state->y = 20;
+	state->dx = 5;
+	state->dy = 5;
+	state->color1 = 1;
+	state->color2 = 2;
+}
+
+static void _move_hello_world(struct hello_world_state *state) {
+	state->x += state->dx;
+	state->y += state->dy;
+	if (state->x > state->width - 120 || state->x < 20) {
+		state->dx = -state->dx;
+	}
+	if (state->y > state->height - 70 || state->y < 20) {
+		state->dy = -state->dy;
+	}
+}
 int main() {
 	stdio_init_all();
 	printf("\nGVga test\n");
-	// // heartbeat led
-    gpio_init(BOARD_LED_PIN);
-    gpio_set_dir(BOARD_LED_PIN, GPIO_OUT);
 
 	int width = 320;
 	int height = 240;
-	int bits = 2;
-	int x = 20;
-	int y = 20;
-	int dx = 5;
-	int dy = 5;
+	int bits = 8;
 
-	uint16_t palette[8] = {GVGA_WHITE, GVGA_RED, GVGA_GREEN, GVGA_BLUE, GVGA_YELLOW, GVGA_CYAN, GVGA_MAGENTA, GVGA_BLACK };
-	GVga *gvga = gvga_init(width, height, bits, NULL);
-	// gvga_setPalette(gvga, palette);
+	_init_led();
+	_init_hello_world(&_hello_world, width, height);
+
+	GVga *gvga = gvga_init(width, height, -bits, NULL); // note: double-buffering enabled
+	if (bits < 8) gvga_setPalette(gvga, _palette, 0, gvga->colors);
+	else gvga_setPalette(gvga, _palette, 0, 16);
 	gvga_start(gvga);
 
-	// display the hello world message on hdmi
-	hello_world(gvga, x, y, width, height, 1, 2);
+	_draw_hello_world(gvga, &_hello_world);
 
-	int rate = 250;
-	uint32_t msLast = to_ms_since_boot(get_absolute_time());;
-	
 	while(1) {
-		// blink led
-		uint32_t ms_since_boot = to_ms_since_boot(get_absolute_time());
-		if (ms_since_boot - msLast < rate) continue;
-        msLast = ms_since_boot;
-		gpio_put(BOARD_LED_PIN, state % 2);
-		state++;
-		x += dx;
-		y += dy;
-		if (x > width - 120 || x < 20) {
-			dx = -dx;
-		}
-		if (y > height - 70 || y < 20) {
-			dy = -dy;
-		}
-		hello_world(gvga, x, y, width, height, 1, 2);
-		// GVgaColor tmp = gvga->palette[1];
-		// memmove(gvga->palette + 1, gvga->palette + 2, 255 * sizeof(GVgaColor));
-		// gvga->palette[255] = tmp;
+		if (!_blink_led(0)) continue;
+		_move_hello_world(&_hello_world);
+		_draw_hello_world(gvga, &_hello_world);
+		gvga_sync(gvga); // wait for the other core to finish displaying the frame buffer
+		gvga_swap(gvga, false); // double-buffering without copy
 	}
 }
