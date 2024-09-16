@@ -10,7 +10,6 @@ static struct GVga _gvga;
 static GVga *gvga = &_gvga;
 
 #define VGA_MODE vga_mode_320x240_60
-#define FRAME_WIDTH 320
 #define FRAME_HEIGHT 240
 #define _8_PIXELS_PER_BYTE 8
 #define _4_PIXELS_PER_BYTE 4
@@ -145,7 +144,7 @@ static void __time_critical_func(render_loop)() {
         dest->data_used = gvga->scanline_render(buf, buf_length, VGA_MODE.width, scanline);
         dest->status = SCANLINE_OK;
         scanvideo_end_scanline_generation(dest);
-        if ((scanline >= FRAME_HEIGHT - 1) && isBlocked) {
+        if ((scanline >= VGA_MODE.height - 1) && isBlocked) {
             mutex_exit(&gvga->scanning_mutex);
             isBlocked = false;
         }
