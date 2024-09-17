@@ -9,7 +9,6 @@
 static struct GVga _gvga;
 static GVga *gvga = &_gvga;
 
-#define VGA_MODE vga_mode_320x240_60
 #define _8_PIXELS_PER_BYTE 8
 #define _4_PIXELS_PER_BYTE 4
 #define _2_PIXELS_PER_BYTE 2
@@ -17,6 +16,7 @@ static GVga *gvga = &_gvga;
 
 static uint16_t _paletteBuf[256 * 8];
 static uint _bufptr;
+static bool _oddFrame = false;
 
 inline void push0(uint32_t *buf, uint16_t value) {
     buf[_bufptr] = value;
@@ -109,6 +109,42 @@ static int32_t _scanline_render_4bpp(uint32_t *buf, size_t buf_length, int width
     return _bufptr;
 }
 
+
+static int32_t _scanline_render_2bpp_interlaced(uint32_t *buf, size_t buf_length, int width, int scanline) {
+    _bufptr = 0;
+    uint8_t *row = &gvga->showFrame[scanline * width / _4_PIXELS_PER_BYTE];
+    uint8_t *end = row + width / _8_PIXELS_PER_BYTE;
+    if ((_oddFrame && (scanline % 2 == 1)) || (!_oddFrame && (scanline % 2 == 0))) {
+        end += width / _8_PIXELS_PER_BYTE;
+        uint16_t *colors = &_paletteBuf[(*row++) * _4_PIXELS_PER_BYTE];
+        push0(buf, COMPOSABLE_RAW_RUN);
+        push1(buf, *colors++);
+        push0(buf, width-3);
+        push1(buf, *colors++);
+        push0(buf, *colors++);
+        push1(buf, *colors++);
+        while(row < end) {
+            colors = &_paletteBuf[(*row++) * _4_PIXELS_PER_BYTE];
+            push0(buf, *colors++);
+            push1(buf, *colors++);
+            push0(buf, *colors++);
+            push1(buf, *colors++);
+        }
+    } else {
+        push0(buf, COMPOSABLE_COLOR_RUN);
+        push1(buf, gvga->palette[0]); // half a frame of black
+        push0(buf, width-5);
+        push1(buf, COMPOSABLE_RAW_2P); 
+        push0(buf, gvga->palette[0]); 
+        push1(buf, gvga->palette[0]); 
+    }
+    push0(buf, COMPOSABLE_RAW_1P);
+    push1(buf, 0);
+    // note we must end with a black pixel
+    push32(buf, COMPOSABLE_EOL_ALIGN);
+    return _bufptr;
+}
+
 static int32_t _scanline_render_8bpp(uint32_t *buf, size_t buf_length, int width, int scanline) {
     _bufptr = 0;
     uint8_t *row = &gvga->showFrame[scanline * width];
@@ -134,16 +170,17 @@ static void __time_critical_func(render_loop)() {
         struct scanvideo_scanline_buffer *dest = scanvideo_begin_scanline_generation(true);
         uint32_t *buf = dest->data;
         size_t buf_length = dest->data_max;
+        uint16_t framenumber = scanvideo_frame_number(dest->scanline_id);
         uint16_t scanline = scanvideo_scanline_number(dest->scanline_id);
+        _oddFrame = framenumber & 1;
         if (scanline == 0 && !isBlocked) {
             mutex_enter_blocking(&gvga->scanning_mutex);
             isBlocked = true;
         }
-        // dest->data_used = striped_scanline(buf, buf_length, VGA_MODE.width, scanline);
-        dest->data_used = gvga->scanline_render(buf, buf_length, VGA_MODE.width, scanline);
+        dest->data_used = gvga->scanline_render(buf, buf_length, gvga->width, scanline);
         dest->status = SCANLINE_OK;
         scanvideo_end_scanline_generation(dest);
-        if ((scanline >= VGA_MODE.height - 1) && isBlocked) {
+        if ((scanline >= gvga->vga_mode->height - 1) && isBlocked) {
             mutex_exit(&gvga->scanning_mutex);
             isBlocked = false;
         }
@@ -151,7 +188,7 @@ static void __time_critical_func(render_loop)() {
 }
 
 static void core1_func() {
-    scanvideo_setup(&VGA_MODE);
+    scanvideo_setup(gvga->vga_mode);
     scanvideo_timing_enable(true);
     render_loop();
 }
@@ -171,6 +208,13 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, void *context) {
     gvga->bits = abs(bits);
     gvga->colors = 1 << gvga->bits;
 
+    if (gvga->width == 320) {
+        gvga->vga_mode = &vga_mode_320x240_60;
+    } else if (gvga->width == 640) {
+        gvga->vga_mode = &vga_mode_640x480_60;
+    } else {
+        return NULL;
+    }
     switch(gvga->bits) {
         case 1:
         case 2:
@@ -190,8 +234,8 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, void *context) {
     }
     mutex_init(&gvga->scanning_mutex);
 
-    gvga->multiplier = (VGA_MODE.height + 1) / height;
-    gvga->headerRows = (VGA_MODE.height - height * gvga->multiplier) / 2;
+    gvga->multiplier = (height + 1) / height;
+    gvga->headerRows = (height - height * gvga->multiplier) / 2;
 
     gvga->palette = calloc(gvga->colors, sizeof(GVgaColor));
     if (gvga->palette == NULL) return NULL;
@@ -203,7 +247,8 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, void *context) {
             break;
         case 2:
             gvga_setPalette(gvga, _palette16, 0, 4);
-            gvga->scanline_render = _scanline_render_2bpp;
+            if (gvga->width == 320) gvga->scanline_render = _scanline_render_2bpp;
+            else gvga->scanline_render = _scanline_render_2bpp_interlaced;
             break;
         case 4:
             gvga_setPalette(gvga, _palette16, 0, 16);

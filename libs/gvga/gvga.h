@@ -2,6 +2,7 @@
 #include "pico.h"
 #include "pico/scanvideo.h"
 #include "pico/multicore.h"
+#include "pico/scanvideo/scanvideo_base.h"
 
 #define GVGA_COLOR(r,g,b) PICO_SCANVIDEO_PIXEL_FROM_RGB5(r, g, b)
 typedef uint16_t GVgaColor;
@@ -31,7 +32,7 @@ typedef enum {
 } GDviColor;
 
 typedef struct GVga {
-    void *hardware;
+    scanvideo_mode_t *vga_mode;
     uint16_t height;
     uint16_t width;
     uint16_t bits;
