@@ -87,6 +87,40 @@ static int32_t _scanline_render_2bpp(uint32_t *buf, size_t buf_length, int width
     return _bufptr;
 }
 
+static int32_t _scanline_render_2bpp_interlaced(uint32_t *buf, size_t buf_length, int width, int scanline) {
+    _bufptr = 0;
+    uint8_t *row = &gvga->showFrame[scanline * width / _4_PIXELS_PER_BYTE];
+    uint8_t *end = row + width / _4_PIXELS_PER_BYTE;
+    if ((_oddFrame && (scanline % 2 == 1)) || (!_oddFrame && (scanline % 2 == 0))) {
+        uint16_t *colors = &_paletteBuf[(*row++) * _4_PIXELS_PER_BYTE];
+        push0(buf, COMPOSABLE_RAW_RUN);
+        push1(buf, *colors++);
+        push0(buf, width-3);
+        push1(buf, *colors++);
+        push0(buf, *colors++);
+        push1(buf, *colors++);
+        while(row < end) {
+            colors = &_paletteBuf[(*row++) * _4_PIXELS_PER_BYTE];
+            push0(buf, *colors++);
+            push1(buf, *colors++);
+            push0(buf, *colors++);
+            push1(buf, *colors++);
+        }
+    } else {
+        push0(buf, COMPOSABLE_COLOR_RUN);
+        push1(buf, gvga->palette[0]); // half a frame of background color
+        push0(buf, width-5);
+        push1(buf, COMPOSABLE_RAW_2P); 
+        push0(buf, gvga->palette[0]); 
+        push1(buf, gvga->palette[0]); 
+    }
+    push0(buf, COMPOSABLE_RAW_1P);
+    push1(buf, 0);
+    // note we must end with a black pixel
+    push32(buf, COMPOSABLE_EOL_ALIGN);
+    return _bufptr;
+}
+
 static int32_t _scanline_render_4bpp(uint32_t *buf, size_t buf_length, int width, int scanline) {
     _bufptr = 0;
     uint8_t *row = &gvga->showFrame[scanline * width / _2_PIXELS_PER_BYTE];
@@ -109,30 +143,26 @@ static int32_t _scanline_render_4bpp(uint32_t *buf, size_t buf_length, int width
     return _bufptr;
 }
 
-
-static int32_t _scanline_render_2bpp_interlaced(uint32_t *buf, size_t buf_length, int width, int scanline) {
+static int32_t _scanline_render_4bpp_interlaced(uint32_t *buf, size_t buf_length, int width, int scanline) {
     _bufptr = 0;
-    uint8_t *row = &gvga->showFrame[scanline * width / _4_PIXELS_PER_BYTE];
-    uint8_t *end = row + width / _8_PIXELS_PER_BYTE;
+    uint8_t *row = &gvga->showFrame[scanline * width / _2_PIXELS_PER_BYTE];
+    uint8_t *end = row + width / _2_PIXELS_PER_BYTE;
     if ((_oddFrame && (scanline % 2 == 1)) || (!_oddFrame && (scanline % 2 == 0))) {
-        end += width / _8_PIXELS_PER_BYTE;
-        uint16_t *colors = &_paletteBuf[(*row++) * _4_PIXELS_PER_BYTE];
+        uint8_t byte = *row++;
+        uint16_t *colors = &_paletteBuf[byte * _2_PIXELS_PER_BYTE];
         push0(buf, COMPOSABLE_RAW_RUN);
         push1(buf, *colors++);
         push0(buf, width-3);
         push1(buf, *colors++);
-        push0(buf, *colors++);
-        push1(buf, *colors++);
         while(row < end) {
-            colors = &_paletteBuf[(*row++) * _4_PIXELS_PER_BYTE];
-            push0(buf, *colors++);
-            push1(buf, *colors++);
+            byte = *row++;
+            colors = &_paletteBuf[byte * _2_PIXELS_PER_BYTE];
             push0(buf, *colors++);
             push1(buf, *colors++);
         }
     } else {
         push0(buf, COMPOSABLE_COLOR_RUN);
-        push1(buf, gvga->palette[0]); // half a frame of black
+        push1(buf, gvga->palette[0]); // half a frame of background color
         push0(buf, width-5);
         push1(buf, COMPOSABLE_RAW_2P); 
         push0(buf, gvga->palette[0]); 
@@ -252,7 +282,8 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, void *context) {
             break;
         case 4:
             gvga_setPalette(gvga, _palette16, 0, 16);
-            gvga->scanline_render = _scanline_render_4bpp;
+            if (gvga->width == 320) gvga->scanline_render = _scanline_render_4bpp;
+            else gvga->scanline_render = _scanline_render_4bpp_interlaced;
             break;
         case 8:
             // set default 256 color palette

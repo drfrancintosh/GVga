@@ -37,7 +37,6 @@ static void _draw_hello_world(GVga *gvga, struct hello_world_state *state) {
 	int color2 = state->color2;
 
 	// draw_some_boxes(gvga);
-	gfx_clear(gvga, 0);
 	for(int i = 1; i < 16; i++) {
 		gfx_box(gvga, i-1, i-1, width - i, height - i, i % gvga->colors);
 	}
@@ -111,6 +110,20 @@ static void _draw_hello_world(GVga *gvga, struct hello_world_state *state) {
 	gfx_line(gvga, x+0, y+h-2, x+0, y+h, color2);
 }
 
+static void _erase_hello_world(GVga *gvga, struct hello_world_state *state, bool clear) {
+	int color1 = state->color1;
+	int color2 = state->color2;
+	if (clear) {
+		gfx_clear(gvga, 0);
+	} else {
+		_hello_world.color1 = 0;
+		_hello_world.color2 = 0;
+		_draw_hello_world(gvga, state);
+		state->color1 = color1;
+		state->color2 = color2;
+	}
+}
+
 static void _init_led() {
 	// heartbeat led
 	gpio_init(BOARD_LED_PIN);
@@ -151,9 +164,9 @@ int main() {
 	stdio_init_all();
 	printf("\nGVga test\n");
 
-	int width = 640;
-	int height = 480;
-	int bits = 4;
+	int width = 320;
+	int height = 240;
+	int bits = -2;
 
 	_init_led();
 	_init_hello_world(&_hello_world, width, height);
@@ -167,8 +180,9 @@ int main() {
 
 	while(100) {
 		if (!_blink_led(1)) continue;
-		_move_hello_world(&_hello_world);
 		gvga_sync(gvga); // wait for the other core to finish displaying the frame buffer
+		_erase_hello_world(gvga, &_hello_world, true);
+		_move_hello_world(&_hello_world);
 		_draw_hello_world(gvga, &_hello_world);
 		gvga_swap(gvga, false); // double-buffering without copy
 	}
