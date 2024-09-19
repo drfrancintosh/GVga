@@ -164,26 +164,28 @@ int main() {
 	stdio_init_all();
 	printf("\nGVga test\n");
 
-	int width = 320;
-	int height = 240;
-	int bits = -2;
+	int width = 640;
+	int height = 360;
+	int bits = 2;
+	bool doubleBuffer = true;
+	bool interlaced = true;
 
 	_init_led();
 	_init_hello_world(&_hello_world, width, height);
 
-	GVga *gvga = gvga_init(width, height, bits, NULL); // note: double-buffering enabled
+	GVga *gvga = gvga_init(width, height, bits, doubleBuffer, interlaced, NULL); // note: double-buffering enabled
 	if (bits < 8) gvga_setPalette(gvga, _palette, 0, gvga->colors);
 	else gvga_setPalette(gvga, _palette, 0, 16);
 	gvga_start(gvga);
 
 	_draw_hello_world(gvga, &_hello_world);
 
-	while(100) {
+	while(true) {
 		if (!_blink_led(1)) continue;
-		gvga_sync(gvga); // wait for the other core to finish displaying the frame buffer
 		_erase_hello_world(gvga, &_hello_world, true);
 		_move_hello_world(&_hello_world);
 		_draw_hello_world(gvga, &_hello_world);
-		gvga_swap(gvga, false); // double-buffering without copy
+		gvga_sync(gvga); // wait for the other core to finish displaying the frame buffer
+		gvga_swap(gvga, false); // double-buffering with/without copy
 	}
 }

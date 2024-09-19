@@ -4,8 +4,8 @@
 add_library(libgvga INTERFACE)
 
 target_sources(libgvga INTERFACE
-${CMAKE_CURRENT_LIST_DIR}/gvga/gvga.c
 ${CMAKE_CURRENT_LIST_DIR}/gfx/gfx.c
+${CMAKE_CURRENT_LIST_DIR}/gvga/gvga.c
 )
 
 include_directories(

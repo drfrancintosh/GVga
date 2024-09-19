@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef unsigned int uint;
+
 #define _1_PIXELS_PER_BYTE 1
 #define _2_PIXELS_PER_BYTE 2
 #define _4_PIXELS_PER_BYTE 4

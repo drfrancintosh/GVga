@@ -1,10 +1,10 @@
 #pragma once
-#include "pico.h"
-#include "pico/scanvideo.h"
-#include "pico/multicore.h"
-#include "pico/scanvideo/scanvideo_base.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
 
-#define GVGA_COLOR(r,g,b) PICO_SCANVIDEO_PIXEL_FROM_RGB5(r, g, b)
+#define GVGA_COLOR(r,g,b) (((b)<<11u)|((g)<<6)|((r)<<0))
 typedef uint16_t GVgaColor;
 
 enum {
@@ -32,7 +32,7 @@ typedef enum {
 } GDviColor;
 
 typedef struct GVga {
-    scanvideo_mode_t *vga_mode;
+    void *vga_mode;
     uint16_t height;
     uint16_t width;
     uint16_t bits;
@@ -44,15 +44,15 @@ typedef struct GVga {
     uint32_t fatBits;
     uint16_t multiplier;
     uint16_t headerRows;
-    uint8_t borderColors[4];
+    GVgaColor borderColors[4];
     int32_t (*scanline_render)(uint32_t *buf, size_t buf_length, int width, int scanline);
-    struct mutex scanning_mutex;
+    void *scanning_mutex;
 
 } GVga;
 
-extern GVga *gvga_init(uint16_t width, uint16_t height, int bits, void *context);
+extern GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bool interlaced, void *context);
 extern void gvga_start(GVga *gvga);
-extern void gvga_setPalette(GVga* gvga, GVgaColor *palette, uint start, uint count);
+extern void gvga_setPalette(GVga* gvga, GVgaColor *palette, unsigned intstart, unsigned intcount);
 extern void gvga_setBorderColors(GVga *gvga, GVgaColor top, GVgaColor bottom, GVgaColor left, GVgaColor right);
 
 extern void gvga_destroy(GVga *gvga);
