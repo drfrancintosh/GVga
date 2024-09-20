@@ -37,16 +37,17 @@ typedef struct GVga {
     uint16_t width;
     uint16_t bits;
     uint16_t colors;
-    void *context;
-    uint8_t *drawFrame;
-    uint8_t *showFrame;
-    GVgaColor *palette;
-    uint32_t fatBits;
+    uint16_t rowBytes;
+    uint16_t pixelsPerByte;
     uint16_t multiplier;
     uint16_t headerRows;
     GVgaColor borderColors[4];
+    GVgaColor *palette;
+    uint8_t *drawFrame;
+    uint8_t *showFrame;
     int32_t (*scanline_render)(uint32_t *buf, size_t buf_length, int width, int scanline);
     void *scanning_mutex;
+    void *context;
 
 } GVga;
 

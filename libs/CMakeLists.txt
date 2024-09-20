@@ -11,11 +11,13 @@ ${CMAKE_CURRENT_LIST_DIR}/gvga/gvga.c
 include_directories(
 	${CMAKE_CURRENT_LIST_DIR}/gvga
 	${CMAKE_CURRENT_LIST_DIR}/gfx
+	${CMAKE_CURRENT_LIST_DIR}/fonts
 )
 
 target_include_directories(libgvga INTERFACE 
 ${CMAKE_CURRENT_LIST_DIR}/gvga
 ${CMAKE_CURRENT_LIST_DIR}/gfx
+${CMAKE_CURRENT_LIST_DIR}/fonts
 )
 
 target_compile_definitions(libgvga INTERFACE

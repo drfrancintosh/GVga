@@ -1,7 +1,9 @@
 #include "gfx.h"
 #include <stdlib.h>
 #include <string.h>
+#include "c16.h"
 
+extern unsigned char fontData[];
 typedef unsigned int uint;
 
 #define _1_PIXELS_PER_BYTE 1
@@ -128,5 +130,32 @@ void gfx_box(GVga *gvga, int x0, int y0, int x1, int y1, int color) {
 void gfx_box_fill(GVga *gvga, int x0, int y0, int x1, int y1, int color) {
     for(int y=y0; y<=y1; y++) {
         gfx_line(gvga, x0, y, x1, y, color);
+    }
+}
+
+#define FONT_WIDTH 8
+#define FONT_HEIGHT 8
+void gfx_char(GVga *gvga, uint16_t x, uint16_t y, uint8_t c, int color) {
+    uint row = y * gvga->rowBytes;
+    uint col = x / gvga->pixelsPerByte;
+    uint8_t *font = &fontData[c*8];
+    for (int i=0; i<8; i++) {
+        uint8_t byte = *font++;
+        gvga->showFrame[row + col] = byte;
+        row += gvga->rowBytes;
+    }
+}
+
+uint8_t _xlate(uint8_t c) {
+    if (c >= '@' && c <= '_') return c - '@' + 0;
+    if (c >= ' ' && c <= '?') return c - ' ' + 32;
+    if (c >= '`' && c <= 0x7f) return c - '`' + 128;
+    return c;
+}
+void gfx_text(GVga *gvga, uint16_t x, uint16_t y, char *text, int color) {
+    while(*text) {
+        uint8_t c = _xlate(*text++);
+        gfx_char(gvga, x, y, c, color);
+        x += 8;
     }
 }

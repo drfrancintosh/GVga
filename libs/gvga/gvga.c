@@ -36,7 +36,9 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
     gvga->width = width;
     gvga->bits = bits;
     gvga->colors = 1 << gvga->bits;
-
+    gvga->rowBytes = (width + 7) / 8;
+    gvga->pixelsPerByte = 8 / gvga->bits;
+    
     // scale vga width
     gvga->vga_mode = &_gvga_mode_640x480_60;
     if (gvga->width == 320) {
