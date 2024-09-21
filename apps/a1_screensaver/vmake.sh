@@ -16,9 +16,7 @@ cd build
 # since it increases performance for some of the applications 
 # because they use SSI in fast DMA streaming mode.
 
-# cmake -DPICO_COPY_TO_RAM=1  ..
-# cmake.sh .. ### DEBUGER OUTPUT ENABLED
+cmake -DPICO_COPY_TO_RAM=1  ..
 
 #make VERBOSE=1
 make -j4
-pdeploy hello_world.elf

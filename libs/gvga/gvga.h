@@ -14,7 +14,7 @@ enum {
     GVGA_RIGHT = 3,
 };
 
-#if PICO_SCANVIDEO_MAX_SCANLINE_BUFFER_WORDS < 700
+#if PICO_SCANVIDEO_MAX_SCANLINE_BUFFER_WORDS < 320
 #error "This library requires PICO_SCANVIDEO_MAX_SCANLINE_BUFFER_WORDS to be at least 320"
 #endif
 
@@ -56,7 +56,7 @@ extern void gvga_start(GVga *gvga);
 extern void gvga_setPalette(GVga* gvga, GVgaColor *palette, unsigned intstart, unsigned intcount);
 extern void gvga_setBorderColors(GVga *gvga, GVgaColor top, GVgaColor bottom, GVgaColor left, GVgaColor right);
 
-extern void gvga_destroy(GVga *gvga);
+extern GVga *gvga_destroy(GVga *gvga);
 extern void gvga_stop(GVga *gvga);
 extern void gvga_sync(GVga *gvga);
 extern void gvga_swap(GVga *gvga, bool copy);

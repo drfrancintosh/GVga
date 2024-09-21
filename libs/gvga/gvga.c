@@ -1,8 +1,8 @@
 #include "gvga.h"
 #include "_gvga.h"
 
-#define FRAME_HEIGHT 480
 #define FRAME_WIDTH 640
+#define FRAME_HEIGHT 480
 
 static struct GVga _gvga;
 static GVga *gvga = &_gvga;
@@ -36,8 +36,8 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
     gvga->width = width;
     gvga->bits = bits;
     gvga->colors = 1 << gvga->bits;
-    gvga->rowBytes = (width + 7) / 8;
     gvga->pixelsPerByte = 8 / gvga->bits;
+    gvga->rowBytes = width / gvga->pixelsPerByte;
     
     // scale vga width
     gvga->vga_mode = &_gvga_mode_640x480_60;
@@ -68,19 +68,20 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
             return NULL;
     }
     uint pixels_per_byte = 8 / gvga->bits;
+    if (width * height / pixels_per_byte * (doubleBuffer ? 2 : 1) > 200000) return NULL;
     gvga->showFrame = calloc(width * height / pixels_per_byte, 1);
-    if (gvga->showFrame == NULL) return NULL;
+    if (gvga->showFrame == NULL) return gvga_destroy(gvga);
 
     gvga->drawFrame = gvga->showFrame;
     if (doubleBuffer) {
         gvga->drawFrame = calloc(width * height / pixels_per_byte, 1);
-        if (gvga->drawFrame == NULL) return NULL;
+        if (gvga->drawFrame == NULL) return gvga_destroy(gvga);
     }
     gvga->scanning_mutex = &_gvga_mutex;
     mutex_init(gvga->scanning_mutex);
 
     gvga->palette = calloc(gvga->colors, sizeof(GVgaColor));
-    if (gvga->palette == NULL) return NULL;
+    if (gvga->palette == NULL) return gvga_destroy(gvga);
 
     switch(gvga->bits) {
         case 1:
@@ -171,8 +172,11 @@ void gvga_setBorderColors(GVga *gvga, GVgaColor top, GVgaColor bottom, GVgaColor
     }   
  }
 
- void gvga_destroy(GVga *gvga) {
-
+ GVga *gvga_destroy(GVga *gvga) {
+    if (gvga->showFrame != NULL) free(gvga->showFrame);
+    if (gvga->drawFrame != NULL && gvga->showFrame != gvga->drawFrame) free(gvga->drawFrame);
+    if (gvga->palette != NULL) free(gvga->palette);
+    return NULL;
  }
 
  void gvga_stop(GVga *gvga) {

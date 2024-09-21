@@ -13,8 +13,8 @@ int _state = 1;
 uint32_t _msLast;
 static GVgaColor _palette[] = {
 	GVGA_BLUE, GVGA_COLOR(16, 28, 28), GVGA_GREEN, GVGA_BLUE, GVGA_YELLOW, GVGA_CYAN, GVGA_VIOLET, GVGA_BLACK,
-	GVGA_COLOR(15, 15, 15), GVGA_COLOR(0, 15, 0), GVGA_COLOR(0, 15, 0), GVGA_COLOR(0, 0, 15),
-	GVGA_COLOR(15, 15, 0), GVGA_COLOR(0, 15, 15), GVGA_COLOR(15, 15, 0), GVGA_COLOR(7, 7, 7)
+	GVGA_COLOR(15, 15, 15), GVGA_COLOR(0, 15, 1), GVGA_COLOR(0, 15, 1), GVGA_COLOR(0, 1, 15),
+	GVGA_COLOR(15, 15, 1), GVGA_COLOR(0, 15, 15), GVGA_COLOR(15, 15, 1), GVGA_COLOR(7, 7, 7)
 };
 
 
@@ -45,29 +45,31 @@ int main() {
 
 	_init_led();
 
-	GVga *gvga = gvga_init(width, height, bits, doubleBuffer, interlaced, NULL); // note: double-buffering enabled
+	GVga *gvga = gvga_init(width, height, bits, doubleBuffer, interlaced, NULL);
 	if (bits < 8) gvga_setPalette(gvga, _palette, 0, gvga->colors);
 	else gvga_setPalette(gvga, _palette, 0, 16);
 	gvga_start(gvga);
 
 	int y = 0;
 
-	gfx_text(gvga, 32, y, "**** COMMODORE 64 BASIC V2 ****", 0);
+	gfx_text(gvga, 32, y, "**** COMMODORE 64 BASIC V2 ****", 1);
 	y += 16;
 	for(int row = 0; row < 16; row++) {
 		for(int col = 0; col < 16; col++) {
-			gfx_char(gvga, col * 16 + 32, y, row * 16 + col, 0);
+			gfx_char(gvga, col * 16 + 32, y, row * 16 + col, 1);
 		}
 		y+=12;
 	}
-	gfx_text(gvga, 32, y, " !\"#$%&'()*+,-./0123456789:;<=>?", 0);
+	gfx_text(gvga, 32, y, " !\"#$%&'()*+,-./0123456789:;<=>?", 1);
 	y+=8;
-	gfx_text(gvga, 32, y, "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_", 0);
+	gfx_text(gvga, 32, y, "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_", 1);
 	y+=8;
-	gfx_text(gvga, 32, y, "`abcdefghijklmnopqrstuvwxyz{|}~\x7f", 0);
+	gfx_text(gvga, 32, y, "`abcdefghijklmnopqrstuvwxyz{|}~\x7f", 1);
 
 	while(true) {
 		if (!_blink_led(100)) continue;
+		_palette[1] = GVGA_COLOR(rand() & 0x1f, rand() & 0x1f, rand() & 0x1f);
+		gvga_setPalette(gvga, _palette, 0, gvga->colors);
 		gvga_sync(gvga); // wait for the other core to finish displaying the frame buffer
 		gvga_swap(gvga, false); // double-buffering with/without copy
 	}
