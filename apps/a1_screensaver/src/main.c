@@ -155,6 +155,7 @@ int main() {
         errorScreen();
     }
 	gvga_setPalette(gvga, palette, 0, min(8, SCREEN_COLORS));
+    // gvga_setBorderColors(gvga, GVGA_RED, GVGA_GREEN, GVGA_BLACK, GVGA_BLACK);
 	gvga_start(gvga);
 	gfx_box(gvga, 10, 10, SCREEN_WIDTH - 10, SCREEN_HEIGHT - 10, 1);
 
