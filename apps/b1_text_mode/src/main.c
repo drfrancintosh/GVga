@@ -8,11 +8,13 @@
  * simple hello world program demonstrating the GVga library
  */
 
+#define C64_CYAN GVGA_COLOR(16, 28, 28)
+
 const uint BOARD_LED_PIN = 25; // Example: GPIO 25, which is connected to the onboard LED
 int _state = 1;
 uint32_t _msLast;
 static GVgaColor _palette[] = {
-	GVGA_BLUE, GVGA_COLOR(16, 28, 28), GVGA_GREEN, GVGA_BLUE, GVGA_YELLOW, GVGA_CYAN, GVGA_VIOLET, GVGA_BLACK,
+	GVGA_BLUE, C64_CYAN, GVGA_GREEN, GVGA_BLUE, GVGA_YELLOW, GVGA_CYAN, GVGA_VIOLET, GVGA_BLACK,
 	GVGA_COLOR(15, 15, 15), GVGA_COLOR(0, 15, 1), GVGA_COLOR(0, 15, 1), GVGA_COLOR(0, 1, 15),
 	GVGA_COLOR(15, 15, 1), GVGA_COLOR(0, 15, 15), GVGA_COLOR(15, 15, 1), GVGA_COLOR(7, 7, 7)
 };
@@ -44,8 +46,8 @@ int main() {
 	printf("\nGVga test\n");
 
 	int width = 640;
-	int height = 400;
-	int bits = 1;
+	int height = 200;
+	int bits = 1; // only single-bit implemnted
 	bool doubleBuffer = false;
 	bool interlaced = true;
 	bool sync = false;
@@ -56,7 +58,7 @@ int main() {
 	if (bits < 8) gvga_setPalette(gvga, _palette, 0, gvga->colors);
 	else gvga_setPalette(gvga, _palette, 0, 16);
 	gvga_start(gvga);
-
+	gvga_setBorderColors(gvga, C64_CYAN, C64_CYAN, GVGA_BLACK, GVGA_BLACK);
 	_center(gvga, 1, "**** COMMODORE 64 BASIC V2 ****", 1);
 	for(int row = 0; row < gvga->rows; row++) {
 		sprintf(buf, "%02d", row);
@@ -73,7 +75,7 @@ int main() {
 			buf[0] = row * 16 + col;
 			buf[1] = 0;
 			gvga_char(gvga, row + 2, col+3, row * 16 + col, 1);
-			gvga_text(gvga, row + 2, gvga->cols-20+col, buf, 1);
+			gvga_text(gvga, row + 2, gvga->cols-18+col, buf, 1);
 		}
 	}
 	int row = 19;
