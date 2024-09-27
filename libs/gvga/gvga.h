@@ -31,6 +31,12 @@ typedef enum {
     GVGA_WHITE = GVGA_COLOR(0x1f, 0x1f, 0x1f),
 } GDviColor;
 
+typedef enum {
+    GVGA_MODE_BITMAP = 0x01,
+    GVGA_MODE_TEXT= 0x02,
+    GVGA_MODE_INTERLACED = 0x04,
+} GVgaMode;
+
 typedef struct GVga {
     void *vga_mode;
     uint16_t height;
@@ -48,6 +54,9 @@ typedef struct GVga {
     int32_t (*scanline_render)(uint32_t *buf, size_t buf_length, int width, int scanline);
     void *scanning_mutex;
     void *context;
+    uint16_t mode;
+    uint16_t rows;
+    uint16_t cols;
 
 } GVga;
 
@@ -60,3 +69,7 @@ extern GVga *gvga_destroy(GVga *gvga);
 extern void gvga_stop(GVga *gvga);
 extern void gvga_sync(GVga *gvga);
 extern void gvga_swap(GVga *gvga, bool copy);
+
+extern uint8_t gvga_text_xlate(uint8_t c);
+extern void gvga_text(GVga *gvga, int row, int col, char *text, uint16_t color);
+extern void gvga_char(GVga *gvga, int row, int col, unsigned char c, uint16_t color);

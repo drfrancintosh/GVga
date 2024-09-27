@@ -1,5 +1,6 @@
 #include "gvga.h"
 #include "_gvga.h"
+#include "c16_pico.h"
 
 #define FRAME_WIDTH 640
 #define FRAME_HEIGHT 480
@@ -31,14 +32,20 @@ static void core1_func() {
 }
 
 GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bool interlaced, void *context) {
+    gvga->bits = bits; // 0 == text mode
+        gvga->mode = GVGA_MODE_BITMAP;
+    if (bits < 0) {
+        gvga->bits = 1;
+        gvga->mode = GVGA_MODE_TEXT;
+    }
     gvga->context = context;
     gvga->height = height;
     gvga->width = width;
-    gvga->bits = bits;
     gvga->colors = 1 << gvga->bits;
     gvga->pixelsPerByte = 8 / gvga->bits;
     gvga->rowBytes = width / gvga->pixelsPerByte;
-    
+    gvga->rows = height / 8;
+    gvga->cols = width / 8;
     // scale vga width
     gvga->vga_mode = &_gvga_mode_640x480_60;
     if (gvga->width == 320) {
@@ -68,13 +75,17 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
             return NULL;
     }
     uint pixels_per_byte = 8 / gvga->bits;
-    if (width * height / pixels_per_byte * (doubleBuffer ? 2 : 1) > 200000) return NULL;
-    gvga->showFrame = calloc(width * height / pixels_per_byte, 1);
+    uint32_t frame_size = width * height / pixels_per_byte * (doubleBuffer ? 2 : 1);
+    if (gvga->mode & GVGA_MODE_TEXT) {
+        frame_size /= 8;
+    }
+    if (frame_size > 200000) return NULL;
+    gvga->showFrame = calloc(frame_size, 1);
     if (gvga->showFrame == NULL) return gvga_destroy(gvga);
 
     gvga->drawFrame = gvga->showFrame;
     if (doubleBuffer) {
-        gvga->drawFrame = calloc(width * height / pixels_per_byte, 1);
+        gvga->drawFrame = calloc(frame_size, 1);
         if (gvga->drawFrame == NULL) return gvga_destroy(gvga);
     }
     gvga->scanning_mutex = &_gvga_mutex;
@@ -182,3 +193,15 @@ void gvga_setBorderColors(GVga *gvga, GVgaColor top, GVgaColor bottom, GVgaColor
  void gvga_stop(GVga *gvga) {
 
  }
+
+void gvga_text(GVga *gvga, int row, int col, char *text, uint16_t color) {
+	char *offset = (char *) gvga->drawFrame + row * gvga->rowBytes + col;
+    while(*text) {
+        *offset++ = *text++;
+    }
+}
+
+void gvga_char(GVga *gvga, int row, int col, unsigned char c, uint16_t color) {
+	unsigned char *offset = gvga->drawFrame + row * gvga->rowBytes + col;
+    *offset = c;
+}

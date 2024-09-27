@@ -16,8 +16,11 @@ inline void push32(uint32_t *buf, uint16_t value) {
 
 static int32_t __time_critical_func(_scanline_render_1bpp)(uint32_t *buf, size_t buf_length, int width, int scanline) {
     _gvga_bufptr = 0;
-    uint8_t *row = &gvga->showFrame[scanline * width / _8_PIXELS_PER_BYTE];
-    uint16_t *colors = &_gvga_paletteBuf[(*row++) * _8_PIXELS_PER_BYTE];
+    uint16_t idx = scanline * width / _8_PIXELS_PER_BYTE;
+    if (gvga->mode & GVGA_MODE_TEXT) idx = (scanline / 8) * (width / _8_PIXELS_PER_BYTE);
+    uint8_t *row = &gvga->showFrame[idx];
+    uint8_t byte = gvga->mode & GVGA_MODE_BITMAP ? *row++ : fontData[(*row++)*8 + (scanline % 8)];
+    uint16_t *colors = &_gvga_paletteBuf[byte * _8_PIXELS_PER_BYTE];
     push0(buf, COMPOSABLE_RAW_RUN);
     push1(buf, *colors++);
     push0(buf, width-3);
@@ -29,7 +32,8 @@ static int32_t __time_critical_func(_scanline_render_1bpp)(uint32_t *buf, size_t
     push0(buf, *colors++);
     push1(buf, *colors++);
     for(int pixel=_8_PIXELS_PER_BYTE; pixel < width; pixel+=_8_PIXELS_PER_BYTE) {
-        colors = &_gvga_paletteBuf[(*row++) * _8_PIXELS_PER_BYTE];
+        byte = gvga->mode & GVGA_MODE_BITMAP ? *row++ : fontData[(*row++)*8 + (scanline % 8)];
+        colors = &_gvga_paletteBuf[byte * _8_PIXELS_PER_BYTE];
         push0(buf, *colors++);
         push1(buf, *colors++);
         push0(buf, *colors++);
