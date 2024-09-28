@@ -13,11 +13,11 @@
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
-#define SCREEN_BITS 4
+#define SCREEN_BITS 2
 #define SCREEN_COLORS (1 << SCREEN_BITS)
-#define DOUBLE_BUFFER false
+#define DOUBLE_BUFFER true
 #define INTERLACED true
-#define SYNC true
+#define SYNC false
 
 #define LINE_COUNT 256
 
