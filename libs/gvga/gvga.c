@@ -108,6 +108,10 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
     gvga->rowBytes = width / gvga->pixelsPerByte;
     gvga->rows = height / 8;
     gvga->cols = width / 8;
+
+    if (gvga->height > FRAME_HEIGHT) {
+        _errorScreen(gvga, "Invalid height");
+    }
     // scale vga width
     gvga->vga_mode = &_gvga_mode_640x480_60;
     if (gvga->width == 320) {

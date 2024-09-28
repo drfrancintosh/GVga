@@ -45,7 +45,7 @@ int main() {
 	printf("\nGVga test\n");
 
 	int width = 640;
-	int height = 400;
+	int height = 240;
 	int bits = 1; // only single-bit implemnted
 	bool doubleBuffer = false;
 	bool interlaced = false;

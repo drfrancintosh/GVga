@@ -166,9 +166,9 @@ int main() {
 
 	int width = 640;
 	int height = 480;
-	int bits = 4;
-	bool doubleBuffer = false;
-	bool interlaced = true;
+	int bits = 1;
+	bool doubleBuffer = true;
+	bool interlaced = false;
 	bool sync = false;
 
 	_init_led();
@@ -182,7 +182,7 @@ int main() {
 	_draw_hello_world(gvga, &_hello_world);
 
 	while(true) {
-		if (!_blink_led(100)) continue;
+		_blink_led(100);
 		_erase_hello_world(gvga, &_hello_world, true);
 		_move_hello_world(&_hello_world);
 		_draw_hello_world(gvga, &_hello_world);
