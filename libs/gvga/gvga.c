@@ -1,12 +1,12 @@
 #include "gvga.h"
 #include "_gvga.h"
-#include "c16_pico.h"
+#include "gvga_font.h"
+#include "_gvga_font_data.h"
 
 #define FRAME_WIDTH 640
 #define FRAME_HEIGHT 480
 
 static struct GVga _gvga;
-static GVga *gvga = &_gvga;
 static mutex_t _gvga_mutex;
 
 static scanvideo_mode_t _gvga_mode_640x480_60 =
@@ -25,20 +25,57 @@ static bool _gvga_oddFrame = false;
 #include "_gvga_palette.c"
 #include "_gvga_scanlines.c"
 
-static void core1_func() {
-    scanvideo_setup(gvga->vga_mode);
-    scanvideo_timing_enable(true);
-    render_loop();
+static void __time_critical_func(render_loop)(GVga *gvga) {
+    bool isBlocked = false;
+    bool isInterlaced = gvga->mode & GVGA_MODE_INTERLACED;
+    while (true) {
+        struct scanvideo_scanline_buffer *dest = scanvideo_begin_scanline_generation(true);
+        uint32_t *buf = dest->data;
+        size_t buf_length = dest->data_max;
+        uint16_t framenumber = scanvideo_frame_number(dest->scanline_id);
+        uint16_t scanline = scanvideo_scanline_number(dest->scanline_id);
+        bool isEvenScanline = !(scanline & 1);
+        _gvga_oddFrame = framenumber & 1;
+        if (scanline == 0 && !isBlocked) {
+            mutex_enter_blocking(gvga->scanningMutex);
+            isBlocked = true;
+        }
+        if (scanline < gvga->headerRows) {
+            dest->data_used = _scanline_render_blank_line(gvga, buf, buf_length, gvga->width, scanline, gvga->borderColors[GVGA_TOP]);
+        } else if (scanline < gvga->height + gvga->headerRows) {
+            if (isInterlaced && (_gvga_oddFrame ^ isEvenScanline)) {
+                dest->data_used = _scanline_render_blank_line(gvga, buf, buf_length, gvga->width, scanline, gvga->palette[0]);
+            } else {
+                dest->data_used = gvga->scanlineRender(gvga, buf, buf_length, gvga->width, scanline - gvga->headerRows);
+            }
+        } else {
+            dest->data_used = _scanline_render_blank_line(gvga, buf, buf_length, gvga->width, scanline, gvga->borderColors[GVGA_BOTTOM]);
+        }
+        dest->status = SCANLINE_OK;
+        scanvideo_end_scanline_generation(dest);
+        if ((scanline >= gvga->height - 1) && isBlocked) {
+            mutex_exit(gvga->scanningMutex);
+            isBlocked = false;
+        }
+    }
 }
 
-GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bool interlaced, void *context) {
+static void core1_func() {
+    scanvideo_setup(_gvga.vga_mode);
+    scanvideo_timing_enable(true);
+    render_loop(&_gvga);
+}
+
+GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bool interlaced, void *userData) {
+    GVga *gvga = &_gvga;
     gvga->bits = bits; // 0 == text mode
         gvga->mode = GVGA_MODE_BITMAP;
     if (bits < 0) {
         gvga->bits = 1;
         gvga->mode = GVGA_MODE_TEXT;
     }
-    gvga->context = context;
+    gvga->mode |= interlaced ? GVGA_MODE_INTERLACED : 0;
+    gvga->userData = userData;
     gvga->height = height;
     gvga->width = width;
     gvga->colors = 1 << gvga->bits;
@@ -58,11 +95,13 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
         return NULL;
     }
 
+    gvga->font = gvga_font_init(8, 8, 0, 255, _gvga_font_data);
+
     // scale vga height
     gvga->multiplier = (FRAME_HEIGHT + 1) / height;
-    uint vga_height = FRAME_HEIGHT / gvga->multiplier;
-    gvga->headerRows = (vga_height - height) / 2;
-    _gvga_mode_640x480_60.height = vga_height;
+    uint vgaHeight = FRAME_HEIGHT / gvga->multiplier;
+    gvga->headerRows = (vgaHeight - height) / 2;
+    _gvga_mode_640x480_60.height = vgaHeight;
     _gvga_mode_640x480_60.yscale = gvga->multiplier;
 
     switch(gvga->bits) {
@@ -74,22 +113,21 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
         default:
             return NULL;
     }
-    uint pixels_per_byte = 8 / gvga->bits;
-    uint32_t frame_size = width * height / pixels_per_byte * (doubleBuffer ? 2 : 1);
+    uint pixelsPerByte = 8 / gvga->bits;
+    uint32_t frameBytes = width * height / pixelsPerByte;
     if (gvga->mode & GVGA_MODE_TEXT) {
-        frame_size /= 8;
+        frameBytes /= 8;
     }
-    if (frame_size > 200000) return NULL;
-    gvga->showFrame = calloc(frame_size, 1);
+    gvga->showFrame = calloc(frameBytes, 1);
     if (gvga->showFrame == NULL) return gvga_destroy(gvga);
 
     gvga->drawFrame = gvga->showFrame;
     if (doubleBuffer) {
-        gvga->drawFrame = calloc(frame_size, 1);
+        gvga->drawFrame = calloc(frameBytes, 1);
         if (gvga->drawFrame == NULL) return gvga_destroy(gvga);
     }
-    gvga->scanning_mutex = &_gvga_mutex;
-    mutex_init(gvga->scanning_mutex);
+    gvga->scanningMutex = &_gvga_mutex;
+    mutex_init(gvga->scanningMutex);
 
     gvga->palette = calloc(gvga->colors, sizeof(GVgaColor));
     if (gvga->palette == NULL) return gvga_destroy(gvga);
@@ -97,15 +135,15 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
     switch(gvga->bits) {
         case 1:
             gvga_setPalette(gvga, _gvga_palette16, 0, 2);
-            gvga->scanline_render = _scanline_render_1bpp;
+            gvga->scanlineRender = _scanline_render_1bpp;
             break;
         case 2:
             gvga_setPalette(gvga, _gvga_palette16, 0, 4);
-            gvga->scanline_render = interlaced ? _scanline_render_2bpp_interlaced : _scanline_render_2bpp;
+            gvga->scanlineRender = _scanline_render_2bpp;
             break;
         case 4:
             gvga_setPalette(gvga, _gvga_palette16, 0, 16);
-            gvga->scanline_render = interlaced ? _scanline_render_4bpp_interlaced : _scanline_render_4bpp;
+            gvga->scanlineRender = _scanline_render_4bpp;
             break;
         case 8:
             // set default 256 color palette
@@ -117,7 +155,7 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
             }
             // copy the 16-bit default palette to the 256-bit palette
             gvga_setPalette(gvga, _gvga_palette16, 0, 16);
-            gvga->scanline_render = interlaced ? _scanline_render_8bpp_interlaced : _scanline_render_8bpp;
+            gvga->scanlineRender = _scanline_render_8bpp;
             break;
     }
 
@@ -126,20 +164,20 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
 
 void gvga_sync(GVga *gvga) {
     // wait for the mutex to be acquired by core 1
-    while (mutex_try_enter(gvga->scanning_mutex, NULL)) {
+    while (mutex_try_enter(gvga->scanningMutex, NULL)) {
         // the other core hasn't started displaying the scanlines
         // release it immediately so core 1 can acquire it
-        mutex_exit(gvga->scanning_mutex); 
+        mutex_exit(gvga->scanningMutex); 
     }
     // core 1 has acquired the mutex
     // wait for it to release it
-    while(!mutex_try_enter(gvga->scanning_mutex, NULL)) {
+    while(!mutex_try_enter(gvga->scanningMutex, NULL)) {
         // the other core is still displaying the scanlines
         // wait for it to finish
     }
     // core 1 has released the mutex and we now have it
     // release it so that core 1 is free to display the frame buffer
-    mutex_exit(gvga->scanning_mutex); 
+    mutex_exit(gvga->scanningMutex); 
 }
 
 void gvga_swap(GVga *gvga, bool copy) {

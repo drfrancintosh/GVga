@@ -13,11 +13,11 @@
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
-#define SCREEN_BITS 2
+#define SCREEN_BITS 4
 #define SCREEN_COLORS (1 << SCREEN_BITS)
-#define DOUBLE_BUFFER true
+#define DOUBLE_BUFFER false
 #define INTERLACED true
-#define SYNC false
+#define SYNC true
 
 #define LINE_COUNT 256
 
@@ -124,19 +124,19 @@ void nerdStats(GVga *gvga, uint16_t x, uint16_t y, uint16_t fps, uint32_t msPerF
 }
 void errorScreen() {
     char buf[80];
-    int x = 0;
-    int y = 0;
+    int row = 0;
+    int col = 0;
     uint16_t pen = 1;
-	GVga *gvga = gvga_init(320, 240, 1, false, false, NULL);
+	GVga *gvga = gvga_init(320, 240, -1, false, false, NULL);
 	gvga_start(gvga);
 
     sprintf(buf, "Out of Memory");
-    gfx_text(gvga, x, y += 10, buf, pen);
+    gvga_text(gvga, row++, col, buf, pen);
     sprintf(buf, "w=%d h=%d b=%d dblbuf=%b", SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BITS, DOUBLE_BUFFER);
-    gfx_text(gvga, x, y += 10, buf, pen);
+    gvga_text(gvga, row++, col, buf, pen);
     uint32_t mem = SCREEN_WIDTH * SCREEN_HEIGHT / (8 / SCREEN_BITS) * (DOUBLE_BUFFER ? 2 : 1);
     sprintf(buf, "Mem: %d,%03d", mem / 1000, mem % 1000);
-    gfx_text(gvga, x, y += 10, buf, pen);
+    gvga_text(gvga, row++, col, buf, pen);
     while(1);
 }
 
@@ -150,6 +150,9 @@ int main() {
 	printf("\nGVga test\n");
 
 	GVgaColor palette[8] = {GVGA_WHITE, GVGA_RED, GVGA_GREEN, GVGA_BLUE, GVGA_YELLOW, GVGA_CYAN, GVGA_MAGENTA, GVGA_BLACK };
+    if (SCREEN_HEIGHT * SCREEN_WIDTH / (8 / SCREEN_BITS) * (DOUBLE_BUFFER ? 2 : 1) >= 250000) {
+        errorScreen();
+    }
 	GVga *gvga = gvga_init(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BITS, DOUBLE_BUFFER, INTERLACED, NULL);
     if (gvga == NULL) {
         errorScreen();

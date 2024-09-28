@@ -169,6 +169,7 @@ int main() {
 	int bits = 8;
 	bool doubleBuffer = true;
 	bool interlaced = false;
+	bool sync = false;
 
 	_init_led();
 	_init_hello_world(&_hello_world, width, height);
@@ -181,11 +182,11 @@ int main() {
 	_draw_hello_world(gvga, &_hello_world);
 
 	while(true) {
-		if (!_blink_led(1)) continue;
+		if (!_blink_led(100)) continue;
 		_erase_hello_world(gvga, &_hello_world, true);
 		_move_hello_world(&_hello_world);
 		_draw_hello_world(gvga, &_hello_world);
-		gvga_sync(gvga); // wait for the other core to finish displaying the frame buffer
+		if (sync) gvga_sync(gvga); // wait for the other core to finish displaying the frame buffer
 		gvga_swap(gvga, false); // double-buffering with/without copy
 	}
 }

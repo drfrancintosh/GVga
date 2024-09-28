@@ -145,7 +145,7 @@ void gfx_char(GVga *gvga, uint16_t x, uint16_t y, uint8_t c, uint16_t pen) {
     uint row = y * gvga->rowBytes;
     uint col = x / gvga->pixelsPerByte;
     uint8_t *ptr = &gvga->drawFrame[row + col];
-    uint8_t *font = &fontData[c*8];
+    uint8_t *font = &gvga->font->data[c*8];
     switch(gvga->bits) {
         case 1:
             penMask = pen ? 0xff : 0x00;
@@ -186,17 +186,9 @@ void gfx_char(GVga *gvga, uint16_t x, uint16_t y, uint8_t c, uint16_t pen) {
     }
 }
 
-uint8_t _xlate(uint8_t c) {
-    if (c >= '@' && c <= '_') return c - '@' + 0;
-    if (c >= ' ' && c <= '?') return c - ' ' + 32;
-    if (c >= '`' && c <= 0x7f) return c - '`' + 128;
-    return c;
-}
-
 void gfx_text(GVga *gvga, uint16_t x, uint16_t y, char *text, uint16_t pen) {
     while(*text) {
-        uint8_t c = _xlate(*text++);
-        gfx_char(gvga, x, y, c, pen);
+        gfx_char(gvga, x, y, *text++, pen);
         x += 8;
     }
 }

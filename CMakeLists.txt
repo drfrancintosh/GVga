@@ -7,7 +7,7 @@ include($ENV{PICO_EXTRAS_PATH}/external/pico_extras_import.cmake)
 project(${PROJECT} C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
 
 pico_sdk_init()
 
