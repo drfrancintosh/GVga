@@ -45,10 +45,10 @@ int main() {
 	printf("\nGVga test\n");
 
 	int width = 640;
-	int height = 200;
+	int height = 400;
 	int bits = 1; // only single-bit implemnted
 	bool doubleBuffer = false;
-	bool interlaced = true;
+	bool interlaced = false;
 	bool sync = false;
 
 	_init_led();

@@ -7,6 +7,7 @@ target_sources(libgvga INTERFACE
 ${CMAKE_CURRENT_LIST_DIR}/gfx/gfx.c
 ${CMAKE_CURRENT_LIST_DIR}/gvga/gvga.c
 ${CMAKE_CURRENT_LIST_DIR}/gvga/gvga_font.c
+${CMAKE_CURRENT_LIST_DIR}/gvga/gmem.c
 )
 
 include_directories(

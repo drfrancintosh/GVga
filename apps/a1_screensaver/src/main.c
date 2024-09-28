@@ -122,23 +122,6 @@ void nerdStats(GVga *gvga, uint16_t x, uint16_t y, uint16_t fps, uint32_t msPerF
     sprintf(buf, "(w=%d, h=%d, b=%d mem=%d)", gvga->width, gvga->height, gvga->bits, gvga->rowBytes * gvga->height * (DOUBLE_BUFFER ? 2 : 1));
     gfx_text(gvga, x, y += 10, buf, pen);
 }
-void errorScreen() {
-    char buf[80];
-    int row = 0;
-    int col = 0;
-    uint16_t pen = 1;
-	GVga *gvga = gvga_init(320, 240, -1, false, false, NULL);
-	gvga_start(gvga);
-
-    sprintf(buf, "Out of Memory");
-    gvga_text(gvga, row++, col, buf, pen);
-    sprintf(buf, "w=%d h=%d b=%d dblbuf=%b", SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BITS, DOUBLE_BUFFER);
-    gvga_text(gvga, row++, col, buf, pen);
-    uint32_t mem = SCREEN_WIDTH * SCREEN_HEIGHT / (8 / SCREEN_BITS) * (DOUBLE_BUFFER ? 2 : 1);
-    sprintf(buf, "Mem: %d,%03d", mem / 1000, mem % 1000);
-    gvga_text(gvga, row++, col, buf, pen);
-    while(1);
-}
 
 int main() {
     uint16_t pen = 0;
@@ -150,13 +133,7 @@ int main() {
 	printf("\nGVga test\n");
 
 	GVgaColor palette[8] = {GVGA_WHITE, GVGA_RED, GVGA_GREEN, GVGA_BLUE, GVGA_YELLOW, GVGA_CYAN, GVGA_MAGENTA, GVGA_BLACK };
-    if (SCREEN_HEIGHT * SCREEN_WIDTH / (8 / SCREEN_BITS) * (DOUBLE_BUFFER ? 2 : 1) >= 250000) {
-        errorScreen();
-    }
 	GVga *gvga = gvga_init(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BITS, DOUBLE_BUFFER, INTERLACED, NULL);
-    if (gvga == NULL) {
-        errorScreen();
-    }
 	gvga_setPalette(gvga, palette, 0, min(8, SCREEN_COLORS));
     // gvga_setBorderColors(gvga, GVGA_RED, GVGA_GREEN, GVGA_BLACK, GVGA_BLACK);
 	gvga_start(gvga);

@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e 
 
-export PICO_PATH=${HOME}/stack/pico
-export PICO_SDK_PATH=${PICO_PATH}/pico-sdk
-export PICO_EXTRAS_PATH=${PICO_PATH}/pico-extras
-export GVGA_HOME=${HOME}/git/GVga
+# export PICO_PATH=${HOME}/stack/pico
+# export PICO_SDK_PATH=${PICO_PATH}/pico-sdk
+# export PICO_EXTRAS_PATH=${PICO_PATH}/pico-extras
+export GVGA_HOME=${USER_HOME}/git/GVga
 
 clear
 env | grep PICO

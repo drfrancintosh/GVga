@@ -36,6 +36,7 @@ typedef enum {
     GVGA_MODE_BITMAP = 0x01,
     GVGA_MODE_TEXT= 0x02,
     GVGA_MODE_INTERLACED = 0x04,
+    GVGA_MODE_DOUBLE_BUFFERED = 0x08,
 } GVgaMode;
 
 typedef struct GVga {

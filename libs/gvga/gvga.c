@@ -2,6 +2,7 @@
 #include "_gvga.h"
 #include "gvga_font.h"
 #include "_gvga_font_data.h"
+#include "gmem.h"
 
 #define FRAME_WIDTH 640
 #define FRAME_HEIGHT 480
@@ -66,6 +67,29 @@ static void core1_func() {
     render_loop(&_gvga);
 }
 
+static void _errorScreen(GVga *gvga, char *msg) {
+    if (gvga) {
+        gvga_destroy(gvga);
+    }
+    char line1[80];
+    char line2[80];
+    char line3[80];
+    uint32_t mem = gvga->width * gvga->height / (8 / gvga->bits) * (gvga->mode & GVGA_MODE_DOUBLE_BUFFERED ? 2 : 1);
+    sprintf(line1, msg);
+    sprintf(line2, "w=%d h=%d b=%d dblbuf=%b", gvga->width, gvga->height, gvga->bits, (gvga->mode & GVGA_MODE_DOUBLE_BUFFERED)!=0);
+    sprintf(line3, "Mem: %d,%03d", mem / 1000, mem % 1000);
+
+    int row = 0;
+    int col = 0;
+    uint16_t pen = 1;
+	gvga = gvga_init(320, 120, -1, false, false, NULL);
+	gvga_start(gvga);
+    gvga_text(gvga, row++, col, line1, pen);
+    gvga_text(gvga, row++, col, line2, pen);
+    gvga_text(gvga, row++, col, line3, pen);
+    while(1);
+}
+
 GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bool interlaced, void *userData) {
     GVga *gvga = &_gvga;
     gvga->bits = bits; // 0 == text mode
@@ -75,6 +99,7 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
         gvga->mode = GVGA_MODE_TEXT;
     }
     gvga->mode |= interlaced ? GVGA_MODE_INTERLACED : 0;
+    gvga->mode |= doubleBuffer ? GVGA_MODE_DOUBLE_BUFFERED : 0;
     gvga->userData = userData;
     gvga->height = height;
     gvga->width = width;
@@ -92,7 +117,7 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
         _gvga_mode_640x480_60.width = 640;
         _gvga_mode_640x480_60.xscale = 1;
     } else {
-        return NULL;
+        _errorScreen(gvga, "Invalid width");
     }
 
     gvga->font = gvga_font_init(8, 8, 0, 255, _gvga_font_data);
@@ -111,26 +136,26 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
         case 8:
             break;
         default:
-            return NULL;
+            _errorScreen(gvga, "Invalid bits");
     }
     uint pixelsPerByte = 8 / gvga->bits;
     uint32_t frameBytes = width * height / pixelsPerByte;
     if (gvga->mode & GVGA_MODE_TEXT) {
         frameBytes /= 8;
     }
-    gvga->showFrame = calloc(frameBytes, 1);
-    if (gvga->showFrame == NULL) return gvga_destroy(gvga);
+    gvga->showFrame = gcalloc(frameBytes, 1);
+    if (gvga->showFrame == NULL) _errorScreen(gvga, "Out of memory - showFrame");
 
     gvga->drawFrame = gvga->showFrame;
     if (doubleBuffer) {
-        gvga->drawFrame = calloc(frameBytes, 1);
-        if (gvga->drawFrame == NULL) return gvga_destroy(gvga);
+        gvga->drawFrame = gcalloc(frameBytes, 1);
+        if (gvga->drawFrame == NULL) _errorScreen(gvga, "Out of memory - drawFrame");
     }
     gvga->scanningMutex = &_gvga_mutex;
     mutex_init(gvga->scanningMutex);
 
-    gvga->palette = calloc(gvga->colors, sizeof(GVgaColor));
-    if (gvga->palette == NULL) return gvga_destroy(gvga);
+    gvga->palette = gcalloc(gvga->colors, sizeof(GVgaColor));
+    if (gvga->palette == NULL) _errorScreen(gvga, "Out of memory - palette");
 
     switch(gvga->bits) {
         case 1:

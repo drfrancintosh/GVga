@@ -164,11 +164,11 @@ int main() {
 	stdio_init_all();
 	printf("\nGVga test\n");
 
-	int width = 320;
-	int height = 240;
-	int bits = 8;
-	bool doubleBuffer = true;
-	bool interlaced = false;
+	int width = 640;
+	int height = 480;
+	int bits = 4;
+	bool doubleBuffer = false;
+	bool interlaced = true;
 	bool sync = false;
 
 	_init_led();
