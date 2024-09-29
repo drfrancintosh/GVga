@@ -12,7 +12,7 @@
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
-#define SCREEN_BITS 2
+#define SCREEN_BITS 1
 #define SCREEN_COLORS (1 << SCREEN_BITS)
 #define DOUBLE_BUFFER true
 #define INTERLACED false
@@ -177,6 +177,8 @@ void nerdStats(GVga *gvga, uint16_t x, uint16_t y, uint16_t fps, uint32_t msPerF
     gfx->drawText(gvga, x, y += 10, buf, pen);
     sprintf(buf, "(w=%d, h=%d, b=%d mem=%d)", gvga->width, gvga->height, gvga->bits, gvga->rowBytes * gvga->height * (DOUBLE_BUFFER ? 2 : 1));
     gfx->drawText(gvga, x, y += 10, buf, pen);
+    sprintf(buf, "(%d, %d, %d, %d)", x0, y0, x1, y1);
+    gfx->drawText(gvga, x, y += 10, buf, pen);
 }
 
 int main() {
@@ -203,7 +205,7 @@ int main() {
 	uint32_t then = msNow();
     int frameCounter = 0;
 	while(1) {
-        _blink_led(100);
+        if (!_blink_led(25) && false) continue;
         if (SYNC) gvga_sync(gvga);
         msPerFrame = msNow() - now;
         now = msNow();

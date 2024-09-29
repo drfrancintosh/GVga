@@ -27,11 +27,10 @@ inline uint _max(uint a, uint b) {
     return a > b ? a : b;
 }
 
-#define _swap(a, b) {\
+#define _swap(a, b)\
     tmp = a;\
     a = b;\
     b = tmp;\
-}
 
 inline uint _offset(GVga *gvga, uint x, uint y) {
     return y * gvga->rowBytes + (x >> _PPB_SHIFT);
@@ -140,25 +139,21 @@ inline void _lineq0(GVga *gvga, int dx, int dy, uint offset, uint mask, int rowB
 
 static void *line(GVga *gvga, uint x0, uint y0, uint x1, uint y1, uint pen) {
     uint tmp;
-    if (x0 > gvga->width || x1 > gvga->width || y0 > gvga->height || y1 > gvga->height) return NULL;
+    if (x0 >= gvga->width || x1 >= gvga->width || y0 >= gvga->height || y1 >= gvga->height) return NULL;
     int dy = y1 - y0;
     if (dy == 0) return hline(gvga, x0, y0, x1, pen);
     int dx = x1 - x0;
     if (dx == 0) return vline(gvga, x0, y0, y1, pen);
     void * (*_point)(GVga *gvga, uint offset, uint mask) = pen ? _set : _reset;
+    if (x1 < x0) {
+        _swap(x0, x1);
+        _swap(y0, y1);
+    }
     uint offset = _offset(gvga, x0, y0);
     uint mask = _bit_mask[x0 & 0x07];
-    if ((dx ^ dy) >= 0) {
-        if (x1 < x0) {
-            _swap(x0, x1);
-            _swap(y0, y1);
-        }
+    if (dx * dy > 0) {
         _lineq0(gvga, _abs(dx), _abs(dy), offset, mask, gvga->rowBytes, _point);
     } else {
-        if (x0 > x1) {
-            _swap(x0, x1);
-            _swap(y0, y1);
-        }
         _lineq0(gvga, _abs(dx), _abs(dy), offset, mask, -gvga->rowBytes, _point);
     }
     return NULL;
