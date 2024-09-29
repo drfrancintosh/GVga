@@ -41,6 +41,7 @@ typedef enum {
 
 typedef struct GVga {
     void *vga_mode;
+    uint32_t frameBytes;
     uint16_t height;
     uint16_t width;
     uint16_t bits;

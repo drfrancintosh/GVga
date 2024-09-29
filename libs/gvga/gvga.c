@@ -106,6 +106,7 @@ GVga *gvga_init(uint16_t width, uint16_t height, int bits, bool doubleBuffer, bo
     gvga->colors = 1 << gvga->bits;
     gvga->pixelsPerByte = 8 / gvga->bits;
     gvga->rowBytes = width / gvga->pixelsPerByte;
+    gvga->frameBytes = gvga->rowBytes * height;
     gvga->rows = height / 8;
     gvga->cols = width / 8;
 
