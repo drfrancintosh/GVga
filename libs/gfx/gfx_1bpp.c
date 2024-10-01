@@ -183,7 +183,7 @@ static void *rectFill(GVga *gvga, uint x0, uint y0, uint x1, uint y1, uint pen) 
     return NULL;
 }
 
-static void *drawText(GVga *gvga, uint x, uint y, char *text, uint pen) {
+static void *drawText(GVga *gvga, uint x, uint y, char *text, uint pen, uint bgnd) {
     uint rowBytes = gvga->rowBytes;
     uint row = y * rowBytes;
     uint col = x / gvga->pixelsPerByte;

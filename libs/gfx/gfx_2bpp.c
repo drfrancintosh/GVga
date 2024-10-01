@@ -50,7 +50,7 @@ static void *set(GVga *gvga, uint x, uint y, uint pen) {
     return NULL;
 }
 
-static void *hline(GVga *gvga, uint x0, uint y, uint x1, uint pen) {
+static void *hline(GVga *gvga, uint x0, uint y, uint x1, uint pen, uint bgnd) {
     if (x0 > x1) {
         uint tmp;
         _swap(x0, x1);

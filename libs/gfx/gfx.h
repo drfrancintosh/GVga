@@ -17,7 +17,7 @@ typedef struct Gfx {
     void *(*clear)(GVga *gvga, uint pen);
     void *(*rect)(GVga *gvga, uint x0, uint y0, uint x1, uint y1, uint pen);
     void *(*rectFill)(GVga *gvga, uint x0, uint y0, uint x1, uint y1, uint pen);
-    void *(*drawText)(GVga *gvga, uint x, uint y, char *text, uint pen);
+    void *(*drawText)(GVga *gvga, uint x, uint y, char *text, uint pen, uint bgnd);
 } Gfx;
 
 extern  Gfx *gfx_1bpp;

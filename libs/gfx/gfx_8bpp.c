@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define _PPB 2
-#define _PPB_SHIFT 4
+#define _PPB 1
+#define _PPB_SHIFT 8
 #define FIXED_POINT_CONSTANT 15
 
 static uint tmp;
@@ -30,84 +30,52 @@ inline uint _max(uint a, uint b) {
     b = tmp;\
 
 inline uint _offset(GVga *gvga, uint x, uint y) {
-    return y * gvga->rowBytes + (x / _PPB);
+    return y * gvga->rowBytes + x;
 }
 
 static void *set(GVga *gvga, uint x, uint y, uint pen) {
-    pen = pen & 0x0f;
+    pen = pen & 0xff;
     uint offset = _offset(gvga, x, y);
-    uint mask;
-    uint penBits;
-    if (x & 0x01) {
-        mask = 0xf0;
-        penBits = pen << 4;
-    } else {
-        mask = 0x0f;
-        penBits = pen;
-    }
-    gvga->drawFrame[offset] = (gvga->drawFrame[offset] & ~mask) | penBits;
+    gvga->drawFrame[offset] = pen;
     return NULL;
 }
 
-static void *hline(GVga *gvga, uint x0, uint y, uint x1, uint pen, uint bgnd) {
-    pen = 0x0f;
+static void *hline(GVga *gvga, uint x0, uint y, uint x1, uint pen) {
+    pen = 0xff;
     if (x0 > x1) {
         _swap(x0, x1);
     }
     uint offset = _offset(gvga, x0, y);
-    uint penBits = pen << 4;
     uint8_t *frame = &gvga->drawFrame[offset];
     for(uint i = x0; i <= x1; i++) {
-        if (i & 0x01) {
-            *frame = (*frame & 0x0f) | penBits;
-            frame++;
-        } else {
-            *frame= (*frame & 0xf0) | pen;
-        }
+        *frame++ = pen;
     }
     return NULL;
 }
 
 static void *vline(GVga *gvga, uint x, uint y0, uint y1, uint pen) {
-    pen = 0x0f;
+    pen = 0xff;
     if (y0 > y1) {
         _swap(y0, y1);
     }
-    uint mask;
-    uint penBits;
     uint offset = _offset(gvga, x, y0);
     uint rowBytes = gvga->rowBytes;
     uint8_t *frame = &gvga->drawFrame[offset];
-    if (x & 0x01) {
-        mask = 0x0f;
-        penBits = pen;
-    } else {
-        mask = 0xf0;
-        penBits = pen << 4;
-    }
     for (uint i=y0; i<=y1; i++) {
-        *frame = (*frame & mask) | penBits;
+        *frame = pen;
         frame += rowBytes;
     }
     return NULL;
 }
 
-inline void _lineq0(GVga *gvga, uint dx, uint dy, uint offset, uint mask, int rowBytes, uint penBits, uint penReset) {
+inline void _lineq0(GVga *gvga, uint dx, uint dy, uint offset, int rowBytes, uint pen) {
     uint frameBytes = gvga->frameBytes;
     uint8_t *frame = &gvga->drawFrame[offset];
     if (dx > dy) {
         uint m = (dy << FIXED_POINT_CONSTANT) / dx;
         uint e = 0;
         for (int i=0; i<dx; i++) {
-            frame[offset] = (frame[offset] & mask) | penBits;
-            mask >>= 4;
-            penBits >>= 4;
-            if (mask == 0) {
-                mask = 0xf0;
-                penBits = penReset;
-                offset++;
-                if (offset > frameBytes) return;
-            }
+            frame[offset++] = pen;
             e += m;
             if (e >> FIXED_POINT_CONSTANT) {
                 e -= 1 << FIXED_POINT_CONSTANT;
@@ -119,26 +87,21 @@ inline void _lineq0(GVga *gvga, uint dx, uint dy, uint offset, uint mask, int ro
         uint m = (dx << FIXED_POINT_CONSTANT) / dy;
         uint e = 0;
         for (int i=0; i<dy; i++) {
-            frame[offset] = (frame[offset] & mask) | penBits;
+            frame[offset] = pen;
             offset += rowBytes;
             if (offset > frameBytes) return;
             e += m;
             if (e >> FIXED_POINT_CONSTANT) {
                 e -= 1 << FIXED_POINT_CONSTANT;
-                mask >>= 4;
-                if (mask == 0) {
-                    mask = 0xf0;
-                    penBits = penReset;
-                    offset++;
-                    if (offset > frameBytes) return;
-                }
+                offset++;
+                if (offset > frameBytes) return;
             }
         }
     }
 }
 
 static void *line(GVga *gvga, uint x0, uint y0, uint x1, uint y1, uint pen) {
-    pen &= 0x0f;
+    pen &= 0xff;
     if (x0 >= gvga->width || x1 >= gvga->width || y0 >= gvga->height || y1 >= gvga->height) return NULL;
     int dy = y1 - y0;
     if (dy == 0) return hline(gvga, x0, y0, x1, pen);
@@ -148,27 +111,18 @@ static void *line(GVga *gvga, uint x0, uint y0, uint x1, uint y1, uint pen) {
         _swap(x0, x1);
         _swap(y0, y1);
     }
-    uint mask;
-    uint penBits;
-    if (x0 & 0x01) {
-        mask = 0x0f;
-        penBits = pen << 4;
-    } else {
-        mask = 0xf0;
-        penBits = pen;
-    }
     uint offset = _offset(gvga, x0, y0);
     if (dx * dy > 0) {
-        _lineq0(gvga, _abs(dx), _abs(dy), offset, mask, gvga->rowBytes, penBits, pen << 4);
+        _lineq0(gvga, _abs(dx), _abs(dy), offset, gvga->rowBytes, pen);
     } else {
-        _lineq0(gvga, _abs(dx), _abs(dy), offset, mask, -gvga->rowBytes, penBits, pen << 4);
+        _lineq0(gvga, _abs(dx), _abs(dy), offset, -gvga->rowBytes, pen);
     }
     return NULL;
 }
 
 static void *clear(GVga *gvga, uint pen) {
-    pen &= 0x0f;
-    memset(gvga->drawFrame, pen << 4 | pen, gvga->frameBytes);
+    pen &= 0xff;
+    memset(gvga->drawFrame, pen, gvga->frameBytes);
     return NULL;
 }
 
@@ -187,33 +141,27 @@ static void *rectFill(GVga *gvga, uint x0, uint y0, uint x1, uint y1, uint pen) 
     return NULL;
 }
 
-uint8_t _bitQuadrupler[4] = {0, 0x0f, 0xf0, 0xff};
 static void *drawText(GVga *gvga, uint x, uint y, char *text, uint pen, uint bgnd) {
     uint rowBytes = gvga->rowBytes;
-    uint rowBytes_4 = rowBytes - 4;
     uint row = y * rowBytes;
-    uint col = x / gvga->pixelsPerByte;
+    uint col = x;
     uint8_t *fontData = gvga->font->data;
     uint8_t *frame = &gvga->drawFrame[row + col];
-    uint penMask = pen | pen << 4;
-
     while(*text) {
         uint8_t *glyph = &fontData[(*text++) * 8];
-        uint8_t *nextFrame = frame + 4;
+        uint8_t *nextFrame = frame + 8;
         for (int i=0; i<8; i++) {
             uint8_t byte = *glyph++;
-            *frame++ = (_bitQuadrupler[byte >> 6] & penMask);
-            *frame++ = (_bitQuadrupler[(byte >> 4) & 0x03] & penMask);
-            *frame++ = (_bitQuadrupler[(byte >> 2) & 0x03] & penMask);
-            *frame++ = (_bitQuadrupler[byte & 0x03] & penMask);
-            frame += rowBytes_4;
+            for(int j=0; j<8; j++) {
+                frame[j] = (byte & (1 << (7-j))) ? pen : bgnd;
+            }
         }
         frame = nextFrame;
     }
     return NULL;
 }
 
-static Gfx _gfx_4bpp = {
+static Gfx _gfx_8bpp = {
     .set = set,
     .hline = hline,
     .vline = vline,
@@ -224,4 +172,4 @@ static Gfx _gfx_4bpp = {
     .drawText = drawText
 };
 
-Gfx *gfx_4bpp = &_gfx_4bpp;
+Gfx *gfx_8bpp = &_gfx_8bpp;
