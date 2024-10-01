@@ -10,9 +10,9 @@
  * classic screensaver program demonstrating the GVga library
 **/
 
-#define SCREEN_WIDTH 640
+#define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 480
-#define SCREEN_BITS 1
+#define SCREEN_BITS 2
 #define SCREEN_COLORS (1 << SCREEN_BITS)
 #define DOUBLE_BUFFER true
 #define INTERLACED false
@@ -169,17 +169,21 @@ void screensaver(GVga *gvga) {
     draw_lines(gvga);
 }
 
+static char _buf[240];
 void nerdStats(GVga *gvga, uint16_t x, uint16_t y, uint16_t fps, uint32_t msPerFrame, uint16_t pen) {
-    char buf[80];
-    sprintf(buf, "FPS=%d ms/Frame=%ld, (lines=%d pen=%d)", fps, msPerFrame, LINE_COUNT, pen);
-    gfx->drawText(gvga, x, y += 10, buf, pen);
-    sprintf(buf, "dblbuf=%b interlace=%d sync=%d", DOUBLE_BUFFER, INTERLACED, SYNC);
-    gfx->drawText(gvga, x, y += 10, buf, pen);
-    sprintf(buf, "(w=%d, h=%d, b=%d mem=%d)", gvga->width, gvga->height, gvga->bits, gvga->rowBytes * gvga->height * (DOUBLE_BUFFER ? 2 : 1));
-    gfx->drawText(gvga, x, y += 10, buf, pen);
-    sprintf(buf, "(%d, %d, %d, %d)", x0, y0, x1, y1);
-    gfx->drawText(gvga, x, y += 10, buf, pen);
+    sprintf(_buf, "FPS=%d ms/Frame=%ld, (lines=%d pen=%d)", fps, msPerFrame, LINE_COUNT, pen);
+    gfx->drawText(gvga, x, y += 10, _buf, pen);
+    sprintf(_buf, "dblbuf=%b interlace=%d sync=%d", DOUBLE_BUFFER, INTERLACED, SYNC);
+    gfx->drawText(gvga, x, y += 10, _buf, pen);
+    uint32_t mem = ((uint32_t) gvga->rowBytes) * ((uint32_t) gvga->height) * (DOUBLE_BUFFER ? 2 : 1);
+    sprintf(_buf, "(w=%d, h=%d, b=%d)", gvga->width, gvga->height, gvga->bits);
+    gfx->drawText(gvga, x, y += 10, _buf, pen);
+    sprintf(_buf, "mem=%ld,%03ld", mem/1000, mem%1000);
+    gfx->drawText(gvga, x, y += 10, _buf, pen);
+    sprintf(_buf, "(%d, %d, %d, %d)", x0, y0, x1, y1);
+    gfx->drawText(gvga, x, y += 10, _buf, pen);
 }
+
 
 int main() {
     uint16_t pen = 0;
@@ -191,21 +195,20 @@ int main() {
 	printf("\nGVga test\n");
     _init_led();
 
-    gfx = gfx_1bpp;
+    gfx = gfx_2bpp;
 
 	GVgaColor palette[8] = {GVGA_WHITE, GVGA_RED, GVGA_GREEN, GVGA_BLUE, GVGA_YELLOW, GVGA_CYAN, GVGA_MAGENTA, GVGA_BLACK };
 	GVga *gvga = gvga_init(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_BITS, DOUBLE_BUFFER, INTERLACED, NULL);
 	gvga_setPalette(gvga, palette, 0, min(8, SCREEN_COLORS));
     // gvga_setBorderColors(gvga, GVGA_RED, GVGA_GREEN, GVGA_BLACK, GVGA_BLACK);
 	gvga_start(gvga);
-	gfx->rect(gvga, 10, 10, SCREEN_WIDTH - 10, SCREEN_HEIGHT - 10, 1);
 
 	init_screensaver();
 
 	uint32_t then = msNow();
     int frameCounter = 0;
 	while(1) {
-        if (!_blink_led(25) && false) continue;
+        if (!_blink_led(100) && false) continue;
         if (SYNC) gvga_sync(gvga);
         msPerFrame = msNow() - now;
         now = msNow();

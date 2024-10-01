@@ -3,6 +3,7 @@
 #include "gvga_font.h"
 #include "_gvga_font_data.h"
 #include "gmem.h"
+#include <stdio.h>
 
 #define FRAME_WIDTH 640
 #define FRAME_HEIGHT 480
@@ -77,7 +78,7 @@ static void _errorScreen(GVga *gvga, char *msg) {
     uint32_t mem = gvga->width * gvga->height / (8 / gvga->bits) * (gvga->mode & GVGA_MODE_DOUBLE_BUFFERED ? 2 : 1);
     sprintf(line1, msg);
     sprintf(line2, "w=%d h=%d b=%d dblbuf=%b", gvga->width, gvga->height, gvga->bits, (gvga->mode & GVGA_MODE_DOUBLE_BUFFERED)!=0);
-    sprintf(line3, "Mem: %d,%03d", mem / 1000, mem % 1000);
+    sprintf(line3, "Mem: %ld,%03ld", mem / 1000, mem % 1000);
 
     int row = 0;
     int col = 0;

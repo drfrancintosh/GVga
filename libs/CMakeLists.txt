@@ -9,6 +9,7 @@ ${CMAKE_CURRENT_LIST_DIR}/gvga/gvga_font.c
 ${CMAKE_CURRENT_LIST_DIR}/gvga/gmem.c
 ${CMAKE_CURRENT_LIST_DIR}/gfx/gfx.c
 ${CMAKE_CURRENT_LIST_DIR}/gfx/gfx_1bpp.c
+${CMAKE_CURRENT_LIST_DIR}/gfx/gfx_2bpp.c
 )
 
 include_directories(
