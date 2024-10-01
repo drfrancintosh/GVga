@@ -21,3 +21,4 @@ typedef struct Gfx {
 } Gfx;
 
 extern  Gfx *gfx_1bpp;
+extern  Gfx *gfx_2bpp;
